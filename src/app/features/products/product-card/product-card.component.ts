@@ -1,283 +1,175 @@
-import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
 import { Product } from '../../../core/models/product.model';
-import { ButtonComponent } from '../../../shared/ui/button/button.component';
-import { CartService } from '../../../core/services/cart.service';
-import { WishlistService } from '../../../core/services/wishlist.service';
+import { Store } from '@ngrx/store';
+import { addToCart } from '../../../core/state/cart.actions';
 
 @Component({
   selector: 'app-product-card',
   standalone: true,
-  imports: [CommonModule, RouterModule, ButtonComponent],
+  imports: [CommonModule],
   template: `
-    <div class="card">
-      <div class="badge-container">
-         <span class="discount-badge" *ngIf="product.discountPercentage">-{{ product.discountPercentage }}%</span>
+    <div class="product-card">
+      <div class="product-image">
+        <img [src]="product.image" [alt]="product.title" loading="lazy">
+        <div class="product-badge" *ngIf="product.discountPercentage">
+          -{{ product.discountPercentage }}%
+        </div>
       </div>
       
-      <div class="img-container" [routerLink]="['/products', product.id]">
-        <img [src]="product.image" [alt]="product.title" loading="lazy" />
+      <div class="product-info">
+        <span class="product-category">{{ product.category }}</span>
+        <h3 class="product-title">{{ product.title }}</h3>
         
-        <button class="wishlist-btn" 
-                [class.active]="isFavorite()" 
-                (click)="toggleWishlist($event)"
-                [title]="isFavorite() ? 'Remove from Wishlist' : 'Add to Wishlist'">
-           <i class="pi" [ngClass]="isFavorite() ? 'pi-heart-fill' : 'pi-heart'"></i>
-        </button>
-
-        <div class="overlay-actions">
-           <button class="quick-view">Quick View</button>
-        </div>
-      </div>
-
-      <div class="content">
-        <p class="brand">{{ product.brand }}</p>
-        <h3 class="title" [title]="product.title" [routerLink]="['/products', product.id]">
-          {{ product.title | slice:0:45 }}{{ product.title.length > 45 ? '...' : '' }}
-        </h3>
-        
-        <div class="rating-box">
-           <span class="stars">★★★★★</span>
-           <span class="rating-score" [style.width.%]="(product.rating.rate / 5) * 100">★★★★★</span>
-           <span class="count">({{ product.rating.count }})</span>
+        <div class="product-rating">
+          <span class="stars">★</span>
+          <span class="rating-value">{{ product.rating.rate }}</span>
+          <span class="rating-count">({{ product.rating.count }})</span>
         </div>
         
-        <div class="footer">
+        <div class="product-price-row">
           <div class="price-container">
-            <span class="price">\${{ product.price | number:'1.2-2' }}</span>
-            <span class="original-price" *ngIf="product.originalPrice">\${{ product.originalPrice | number:'1.2-2' }}</span>
+            <span class="current-price">{{ product.price | currency }}</span>
+            <span class="original-price" *ngIf="product.originalPrice">
+              {{ product.originalPrice | currency }}
+            </span>
           </div>
-          <button class="icon-cart-btn" (click)="addToCart()" title="Add to Cart">
-             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="9" cy="21" r="1"></circle>
-                <circle cx="20" cy="21" r="1"></circle>
-                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
-             </svg>
+          <button class="add-to-cart" (click)="onAddToCart($event)">
+            <svg viewBox="0 0 24 24" width="20" height="20">
+              <path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/>
+            </svg>
           </button>
         </div>
       </div>
     </div>
   `,
   styles: [`
-    .card {
-      border: 1px solid var(--border-color, #e5e7eb);
+    :host { display: block; height: 100%; }
+    .product-card {
+      background: var(--surface-card, #ffffff);
       border-radius: 16px;
       overflow: hidden;
-      background: var(--card-bg, #ffffff);
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      border: 1px solid rgba(0,0,0,0.05);
+      height: 100%;
       display: flex;
       flex-direction: column;
-      height: 100%;
       position: relative;
     }
-    .card:hover {
+    .product-card:hover {
       transform: translateY(-8px);
-      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
-      border-color: transparent;
+      box-shadow: 0 12px 24px rgba(0,0,0,0.1);
+      border-color: var(--primary-color, #6366f1);
     }
-    .badge-container {
+    .product-image {
+      position: relative;
+      padding-top: 100%;
+      background: #f8fafc;
+      overflow: hidden;
+    }
+    .product-image img {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80%;
+      height: 80%;
+      object-fit: contain;
+      transition: transform 0.5s ease;
+    }
+    .product-card:hover .product-image img {
+      transform: translate(-50%, -50%) scale(1.1);
+    }
+    .product-badge {
       position: absolute;
       top: 12px;
       left: 12px;
-      z-index: 10;
-    }
-    .discount-badge {
       background: #ef4444;
       color: white;
       padding: 4px 8px;
       border-radius: 6px;
       font-size: 0.75rem;
-      font-weight: 700;
-      box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.3);
-    }
-    .img-container {
-      height: 240px;
-      padding: 2rem;
-      background: var(--img-bg, #f9fafb);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      overflow: hidden;
-    }
-    .img-container img {
-      max-height: 100%;
-      max-width: 100%;
-      object-fit: contain;
-      transition: transform 0.5s;
-      mix-blend-mode: multiply;
-    }
-    .card:hover .img-container img {
-      transform: scale(1.05);
-    }
-    .wishlist-btn {
-      position: absolute;
-      top: 12px;
-      right: 12px;
-      background: white;
-      border: none;
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-      color: #9ca3af;
-      transition: all 0.2s;
-      z-index: 10;
-    }
-    .wishlist-btn:hover {
-      transform: scale(1.1);
-      color: #ef4444;
-    }
-    .wishlist-btn.active {
-      color: #ef4444;
-      background: #fee2e2;
-    }
-    .overlay-actions {
-      position: absolute;
-      bottom: -40px;
-      left: 0; right: 0;
-      display: flex;
-      justify-content: center;
-      transition: bottom 0.3s;
-    }
-    .card:hover .overlay-actions {
-      bottom: 20px;
-    }
-    .quick-view {
-      background: rgba(255,255,255,0.9);
-      backdrop-filter: blur(4px);
-      border: none;
-      padding: 8px 16px;
-      border-radius: 999px;
       font-weight: 600;
-      font-size: 0.875rem;
-      color: #111827;
-      cursor: pointer;
-      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-      opacity: 0;
-      transition: opacity 0.3s;
     }
-    .card:hover .quick-view { opacity: 1; }
-
-    .content {
-      padding: 1.5rem;
+    .product-info {
+      padding: 1.25rem;
       display: flex;
       flex-direction: column;
       flex: 1;
     }
-    .brand {
-      color: #6366f1;
+    .product-category {
       font-size: 0.75rem;
-      font-weight: 700;
+      color: #64748b;
       text-transform: uppercase;
-      letter-spacing: 0.1em;
-      margin: 0 0 0.5rem 0;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
     }
-    .title {
-      font-size: 1.125rem;
-      font-weight: 600;
-      margin: 0 0 0.75rem 0;
-      cursor: pointer;
-      color: var(--text-color, #1f2937);
-      line-height: 1.4;
-    }
-    .rating-box {
-      margin-bottom: 1.25rem;
-      position: relative;
-      display: inline-block;
-      color: #e5e7eb;
+    .product-title {
       font-size: 1rem;
-    }
-    .rating-score {
-      color: #fbbf24;
-      position: absolute;
-      top: 0;
-      left: 0;
+      font-weight: 600;
+      color: #1e293b;
+      margin: 0 0 0.75rem 0;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
       overflow: hidden;
-      white-space: nowrap;
+      line-height: 1.4;
+      height: 2.8em;
     }
-    .count {
-      color: #9ca3af;
-      font-size: 0.875rem;
-      margin-left: 8px;
+    .product-rating {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-bottom: auto;
+      padding-bottom: 1rem;
     }
-
-    .footer {
-      margin-top: auto;
+    .stars { color: #f59e0b; }
+    .rating-value { font-weight: 600; font-size: 0.875rem; }
+    .rating-count { color: #94a3b8; font-size: 0.75rem; }
+    
+    .product-price-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      margin-top: auto;
     }
-    .price-container {
-      display: flex;
-      flex-direction: column;
-    }
-    .price {
-      font-size: 1.5rem;
-      font-weight: 800;
-      color: var(--text-color, #111827);
+    .current-price {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #1e293b;
     }
     .original-price {
       font-size: 0.875rem;
-      color: #9ca3af;
+      color: #94a3b8;
       text-decoration: line-through;
-      margin-top: 2px;
+      margin-left: 8px;
     }
-    .icon-cart-btn {
-      background: var(--text-color, #111827);
-      color: var(--card-bg, #ffffff);
+    .add-to-cart {
+      background: #6366f1;
+      color: white;
       border: none;
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      transition: transform 0.2s, background 0.2s;
+      transition: background 0.2s;
     }
-    .icon-cart-btn:hover {
-      transform: scale(1.1);
-      background: #3b82f6;
+    .add-to-cart:hover {
+      background: #4f46e5;
     }
-
-    :host-context(.dark-theme) .card {
-      --card-bg: #1f2937;
-      --border-color: #374151;
-      --text-color: #f9fafb;
-      --img-bg: #374151; /* Match card bg or slightly lighter */
-    }
-    :host-context(.dark-theme) .img-container img {
-      mix-blend-mode: normal;
-      background: white; /* preserve image background nicely */
-      border-radius: 8px;
-      padding: 10px;
-    }
+    .add-to-cart svg { fill: currentColor; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ProductCardComponent {
   @Input({ required: true }) product!: Product;
-  private cartService = inject(CartService);
-  public wishlistService = inject(WishlistService);
+  private store = inject(Store);
 
-  isFavorite() {
-     return this.wishlistService.isInWishlist(this.product.id);
-  }
-
-  toggleWishlist(event: Event) {
+  onAddToCart(event: Event) {
     event.stopPropagation();
-    event.preventDefault();
-    this.wishlistService.toggleWishlist(this.product);
-  }
-
-  addToCart() {
-    this.cartService.addToCart(this.product);
+    this.store.dispatch(addToCart({ product: this.product, quantity: 1 }));
   }
 }
