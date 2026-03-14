@@ -1,8 +1,8 @@
-import { Component, ChangeDetectionStrategy, inject, Input, OnInit } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, Input, OnInit, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { BehaviorSubject, Observable, of } from 'rxjs';
-import { tap, switchMap, map } from 'rxjs/operators';
+import { tap, switchMap, map, filter, shareReplay } from 'rxjs/operators';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ProductService } from '../../../core/services/product.service';
 import { CartService } from '../../../core/services/cart.service';
@@ -36,9 +36,9 @@ import { ProductCardComponent } from '../product-card/product-card.component';
              <span class="discount-badge" *ngIf="product.discountPercentage">-{{ product.discountPercentage }}%</span>
              <img [src]="activeImage$ | async" [alt]="product.title">
           </div>
-          <div class="thumbnail-gallery" *ngIf="product.images.length > 1">
+          <div class="thumbnail-gallery" *ngIf="(product.images?.length || 0) > 1">
              <div class="thumbnail" 
-                  *ngFor="let img of product.images" 
+                  *ngFor="let img of (product.images?.length ? product.images : [product.image])" 
                   [class.active]="(activeImage$ | async) === img"
                   (click)="setActiveImage(img)">
                 <img [src]="img" alt="Thumbnail">
@@ -76,6 +76,24 @@ import { ProductCardComponent } from '../product-card/product-card.component';
           <div class="price-section">
             <p class="price">\${{ product.price | number:'1.2-2' }}</p>
             <p class="original-price" *ngIf="product.originalPrice">\${{ product.originalPrice | number:'1.2-2' }}</p>
+          </div>
+
+          <div class="variant-box" *ngIf="variantOptions$ | async as variants">
+            <ng-container *ngIf="selectedVariant$ | async as selectedVariant">
+              <div class="variants-header">
+                <h3>Available variants</h3>
+                <span class="selected-label">Selected: {{ selectedVariant }}</span>
+              </div>
+              <div class="variant-chips" *ngIf="variants.length">
+                <button type="button"
+                        class="variant-chip"
+                        *ngFor="let variant of variants"
+                        [class.active]="variant === selectedVariant"
+                        (click)="selectVariant(variant)">
+                  {{ variant }}
+                </button>
+              </div>
+            </ng-container>
           </div>
           
           <div class="features-box">
@@ -217,6 +235,15 @@ import { ProductCardComponent } from '../product-card/product-card.component';
     .price { font-size: 3rem; font-weight: 800; color: var(--text-color, #111827); margin: 0; }
     .original-price { font-size: 1.5rem; color: #9ca3af; text-decoration: line-through; margin: 0; }
 
+    /* Variants */
+    .variant-box { margin-bottom: 2rem; }
+    .variants-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
+    .selected-label { color: #6b7280; font-weight: 600; font-size: 0.9rem; }
+    .variant-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .variant-chip { border: 1px solid var(--border-color, #e5e7eb); background: white; padding: 8px 12px; border-radius: 999px; cursor: pointer; font-weight: 600; color: #374151; transition: all 0.2s; }
+    .variant-chip.active { background: #6366f1; color: white; border-color: #6366f1; box-shadow: 0 10px 20px rgba(99,102,241,0.15); }
+    .variant-chip:hover { border-color: #6366f1; }
+
     /* Features */
     .features-box { margin-bottom: 2.5rem; }
     .features-box h3 { margin: 0 0 1rem 0; color: var(--text-color, #111827); font-size: 1.25rem; }
@@ -276,7 +303,7 @@ import { ProductCardComponent } from '../product-card/product-card.component';
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class ProductDetailsComponent implements OnInit {
+export class ProductDetailsComponent implements OnInit, OnChanges {
   @Input() id!: string; 
   
   private productService = inject(ProductService);
@@ -284,54 +311,90 @@ export class ProductDetailsComponent implements OnInit {
   public wishlistService = inject(WishlistService);
   private recentService = inject(RecentlyViewedService);
   private router = inject(Router);
+  private sanitizer = inject(DomSanitizer);
+  private productIdSubject = new BehaviorSubject<number | null>(null);
 
-  product$!: Observable<Product>;
-  relatedProducts$!: Observable<Product[]>;
-  
+  product$: Observable<Product> = this.productIdSubject.pipe(
+    filter((id): id is number => id !== null),
+    switchMap(id => this.productService.getProduct(id)),
+    tap(product => this.applyProductState(product)),
+    shareReplay(1)
+  );
+
+  relatedProducts$: Observable<Product[]> = this.product$.pipe(
+    switchMap(p => p ? this.productService.getProducts().pipe(
+      map(prods => prods.filter(prod => prod.category === p.category && prod.id !== p.id).slice(0, 4))
+    ) : of([]))
+  );
+
   private activeImageSubject = new BehaviorSubject<string>('');
   activeImage$ = this.activeImageSubject.asObservable();
 
   private quantitySubject = new BehaviorSubject<number>(1);
   quantity$ = this.quantitySubject.asObservable();
 
+  private variantsSubject = new BehaviorSubject<string[]>([]);
+  variantOptions$ = this.variantsSubject.asObservable();
+
+  private selectedVariantSubject = new BehaviorSubject<string>('');
+  selectedVariant$ = this.selectedVariantSubject.asObservable();
+
   sanitizedDescription: SafeHtml = '';
-  private sanitizer = inject(DomSanitizer);
+  private currentStock = 0;
 
   ngOnInit() {
-    this.product$ = this.productService.getProduct(Number(this.id)).pipe(
-      tap(p => {
-        if (p) {
-          if (p.images && p.images.length > 0) {
-            this.activeImageSubject.next(p.images[0]);
-          }
-          // Web Security: String sanitization for dynamic untrusted HTML
-          this.sanitizedDescription = this.sanitizer.bypassSecurityTrustHtml(p.description);
-          
-          // Track recently viewed
-          this.recentService.addViewedProduct(p);
-        }
-      })
-    );
-    
-    // Fetch related products based on the viewed product's category
-    this.relatedProducts$ = this.product$.pipe(
-      switchMap(p => p ? this.productService.getProducts().pipe(
-        map(prods => prods.filter(prod => prod.category === p.category && prod.id !== p.id).slice(0, 4))
-      ) : of([]))
-    );
+    this.pushProductId(this.id);
+  }
+
+  ngOnChanges(changes: SimpleChanges) {
+    if (changes['id']?.currentValue) {
+      this.pushProductId(changes['id'].currentValue);
+    }
+  }
+
+  private pushProductId(rawId: string) {
+    const numericId = Number(rawId);
+    if (!isNaN(numericId) && this.productIdSubject.getValue() !== numericId) {
+      this.productIdSubject.next(numericId);
+    }
+  }
+
+  private applyProductState(product: Product) {
+    const galleryImages = product.images && product.images.length ? product.images : [product.image];
+    this.activeImageSubject.next(galleryImages[0] || '');
+    this.quantitySubject.next(1);
+    this.currentStock = product.stock;
+    // Web Security: String sanitization for dynamic untrusted HTML
+    this.sanitizedDescription = this.sanitizer.bypassSecurityTrustHtml(product.description);
+
+    const variants = product.variants?.length ? product.variants :
+      (product.tags?.length ? product.tags : ['Standard']);
+    this.variantsSubject.next(variants);
+    this.selectedVariantSubject.next(variants[0] ?? '');
+
+    // Track recently viewed
+    this.recentService.addViewedProduct(product);
   }
 
   setActiveImage(img: string) {
-    this.activeImageSubject.next(img);
+    this.activeImageSubject.next(img || this.activeImageSubject.getValue());
   }
 
   updateQuantity(newQty: number) {
-    this.quantitySubject.next(newQty);
+    const maxQty = this.currentStock > 0 ? this.currentStock : newQty;
+    const clamped = Math.min(Math.max(newQty, 1), maxQty);
+    this.quantitySubject.next(clamped);
   }
 
-  addToCart(product: any, qty: number) {
+  selectVariant(variant: string) {
+    this.selectedVariantSubject.next(variant);
+  }
+
+  addToCart(product: Product, qty: number) {
     if (product) {
-      this.cartService.addToCart(product, qty);
+      const selectedVariant = this.selectedVariantSubject.getValue();
+      const productWithVariant = selectedVariant ? { ...product, selectedVariant } : product;
+      this.cartService.addToCart(productWithVariant, qty);
     }
   }
 

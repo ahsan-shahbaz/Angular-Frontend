@@ -1,5 +1,6 @@
 import { Component, Input, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { Product } from '../../../core/models/product.model';
 import { Store } from '@ngrx/store';
 import { addToCart } from '../../../core/state/cart.actions';
@@ -9,7 +10,7 @@ import { addToCart } from '../../../core/state/cart.actions';
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="product-card">
+    <div class="product-card" role="button" tabindex="0" (click)="goToDetails()" (keydown.enter)="goToDetails()" (keydown.space)="goToDetails()">
       <div class="product-image">
         <img [src]="product.image" [alt]="product.title" loading="lazy">
         <div class="product-badge" *ngIf="product.discountPercentage">
@@ -55,6 +56,7 @@ import { addToCart } from '../../../core/state/cart.actions';
       display: flex;
       flex-direction: column;
       position: relative;
+      cursor: pointer;
     }
     .product-card:hover {
       transform: translateY(-8px);
@@ -167,9 +169,14 @@ import { addToCart } from '../../../core/state/cart.actions';
 export class ProductCardComponent {
   @Input({ required: true }) product!: Product;
   private store = inject(Store);
+  private router = inject(Router);
 
   onAddToCart(event: Event) {
     event.stopPropagation();
     this.store.dispatch(addToCart({ product: this.product, quantity: 1 }));
+  }
+
+  goToDetails() {
+    this.router.navigate(['/products', this.product.id]);
   }
 }

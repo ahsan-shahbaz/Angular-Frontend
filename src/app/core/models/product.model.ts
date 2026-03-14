@@ -16,4 +16,6 @@ export interface Product {
     count: number;
   };
   tags: string[];
+  variants?: string[];
+  selectedVariant?: string;
 }

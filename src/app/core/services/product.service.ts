@@ -15,6 +15,7 @@ export class ProductService {
   // RxJS ShareReplay Cache
   private productsCache$?: Observable<Product[]>;
   private categoriesCache$?: Observable<string[]>;
+  private productCache = new Map<number, Observable<Product>>();
 
   getProducts(): Observable<Product[]> {
     if (!this.productsCache$) {
@@ -26,7 +27,18 @@ export class ProductService {
   }
 
   getProduct(id: number): Observable<Product> {
-    return this.http.get<Product>(`${this.apiUrl}/products/${id}`);
+    const cached = this.productCache.get(id);
+    if (cached) {
+      return cached;
+    }
+
+    const request$ = this.http.get<Product>(`${this.apiUrl}/products/${id}`).pipe(
+      // Cache the latest product response to prevent duplicate network calls
+      shareReplay(1)
+    );
+
+    this.productCache.set(id, request$);
+    return request$;
   }
 
   getCategories(): Observable<string[]> {
