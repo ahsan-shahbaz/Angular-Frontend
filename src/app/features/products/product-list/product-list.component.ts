@@ -1,180 +1,145 @@
 import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { BehaviorSubject, combineLatest, Observable } from 'rxjs';
-import { startWith, map, debounceTime, distinctUntilChanged } from 'rxjs/operators';
-import { ProductService } from '../../../core/services/product.service';
+import { Store } from '@ngrx/store';
+import { Observable } from 'rxjs';
 import { Product } from '../../../core/models/product.model';
+import { selectAllProducts, selectProductLoading, selectProductError } from '../../../core/state/product.selectors';
+import { loadProducts } from '../../../core/state/product.actions';
 import { ProductCardComponent } from '../product-card/product-card.component';
-import { LoadingSkeletonComponent } from '../../../shared/ui/loading-skeleton/loading-skeleton.component';
-import { InputComponent } from '../../../shared/ui/input/input.component';
+import { SkeletonCardComponent } from '../../../shared/components/skeleton-card/skeleton-card.component';
 
 @Component({
   selector: 'app-product-list',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, ProductCardComponent, LoadingSkeletonComponent, InputComponent],
+  imports: [CommonModule, ProductCardComponent, SkeletonCardComponent],
   template: `
-    <div class="product-list-page">
-      <aside class="sidebar">
-        <form [formGroup]="filterForm" class="filter-form">
-          <div class="search-box">
-             <app-input formControlName="search" placeholder="Search products..."></app-input>
-          </div>
-
-          <div class="filter-group">
-            <h3>Category</h3>
-            <select formControlName="category" class="select-input">
-              <option value="">All Categories</option>
-              <option *ngFor="let cat of (categories$ | async)" [value]="cat">{{ cat | titlecase }}</option>
-            </select>
-          </div>
-
-          <div class="filter-group">
-            <h3>Sort By</h3>
-            <select formControlName="sort" class="select-input">
-              <option value="none">Recommended</option>
-              <option value="asc">Price: Low to High</option>
-              <option value="desc">Price: High to Low</option>
-            </select>
-          </div>
-        </form>
-      </aside>
-
-      <section class="main-content">
-        <div class="grid" *ngIf="vm$ | async as vm">
-          <ng-container *ngIf="vm.loading; else content">
-            <app-loading-skeleton *ngFor="let i of [1,2,3,4,5,6]"></app-loading-skeleton>
-          </ng-container>
-
-          <ng-template #content>
-            <ng-container *ngIf="vm.products.length > 0; else noResults">
-              <app-product-card 
-                *ngFor="let product of vm.products; trackBy: trackById" 
-                [product]="product">
-              </app-product-card>
-            </ng-container>
-            <ng-template #noResults>
-              <div class="no-results">
-                <p>No products found matching your criteria.</p>
-              </div>
-            </ng-template>
-          </ng-template>
+    <div class="product-list-container">
+      <header class="list-header">
+        <div class="header-content">
+          <h1>Our Collection</h1>
+          <p>Discover our range of premium products curated just for you.</p>
         </div>
-      </section>
+        
+        <div class="filter-bar">
+          <!-- Filters can be added here later -->
+          <div class="stats" *ngIf="(products$ | async) as products">
+            {{ products.length }} items shown
+          </div>
+        </div>
+      </header>
+
+      <!-- Error State -->
+      <div class="error-state" *ngIf="error$ | async as error">
+        <div class="error-card">
+          <svg viewBox="0 0 24 24" width="48" height="48">
+            <path d="M11 15h2v2h-2zm0-8h2v6h-2zm.99-5C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" fill="#ef4444"/>
+          </svg>
+          <h2>Unable to load products</h2>
+          <p>{{ error }}</p>
+          <button (click)="retry()">Try Again</button>
+        </div>
+      </div>
+
+      <!-- Skeleton Loading State -->
+      <div class="product-grid" *ngIf="loading$ | async">
+        <app-skeleton-card *ngFor="let i of [1,2,3,4,5,6,7,8]"></app-skeleton-card>
+      </div>
+
+      <!-- Product Grid -->
+      <div class="product-grid" *ngIf="!(loading$ | async) && (products$ | async) as products">
+        <app-product-card 
+          *ngFor="let product of products" 
+          [product]="product">
+        </app-product-card>
+      </div>
+
+      <!-- Empty State -->
+      <div class="empty-state" *ngIf="!(loading$ | async) && (products$ | async)?.length === 0">
+        <p>No products found matching your criteria.</p>
+      </div>
     </div>
   `,
   styles: [`
-    .product-list-page {
+    .product-list-container {
+      padding: 2rem;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .list-header {
+      margin-bottom: 3rem;
+    }
+    .header-content h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: #1e293b;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(90deg, #6366f1, #a855f7);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .header-content p {
+      color: #64748b;
+      font-size: 1.125rem;
+    }
+    .filter-bar {
+      margin-top: 2rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid #e2e8f0;
       display: flex;
-      gap: 2rem;
+      justify-content: flex-end;
+      color: #94a3b8;
+      font-size: 0.875rem;
     }
-    .sidebar {
-      width: 250px;
-      flex-shrink: 0;
-    }
-    .main-content {
-      flex: 1;
-    }
-    .grid {
+    .product-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
       gap: 2rem;
     }
-    .filter-group {
-      margin-bottom: 1.5rem;
-    }
-    .filter-group h3 {
-      font-size: 1rem;
-      margin-bottom: 0.5rem;
-      color: var(--text-color, #374151);
-    }
-    .select-input {
-      width: 100%;
-      padding: 0.5rem;
-      border: 1px solid var(--border-color, #d1d5db);
-      border-radius: 6px;
-      background: var(--input-bg, white);
-      color: var(--text-color, #1f2937);
-      outline: none;
-    }
-    .no-results {
-      grid-column: 1 / -1;
+    .error-state, .empty-state {
+      display: flex;
+      justify-content: center;
+      padding: 4rem 0;
       text-align: center;
-      padding: 4rem;
-      color: #6b7280;
+    }
+    .error-card {
+      background: white;
+      padding: 3rem;
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+      max-width: 400px;
+    }
+    .error-card h2 { color: #1e293b; margin: 1rem 0; }
+    .error-card p { color: #64748b; margin-bottom: 2rem; }
+    .error-card button {
+      background: #6366f1;
+      color: white;
+      border: none;
+      padding: 0.75rem 2rem;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
     }
     
-    :host-context(.dark-theme) {
-      --border-color: #4b5563;
-      --input-bg: #374151;
-      --text-color: #f9fafb;
-    }
-
     @media (max-width: 768px) {
-      .product-list-page { flex-direction: column; }
-      .sidebar { width: 100%; }
+      .product-list-container { padding: 1rem; }
+      .header-content h1 { font-size: 2rem; }
+      .product-grid { gap: 1rem; }
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ProductListComponent implements OnInit {
-  private productService = inject(ProductService);
-  private fb = inject(FormBuilder);
+  private store = inject(Store);
 
-  filterForm!: FormGroup;
-  categories$!: Observable<string[]>;
-
-  private loadingSubject = new BehaviorSubject<boolean>(true);
-
-  vm$!: Observable<{ products: Product[], loading: boolean }>;
+  products$: Observable<Product[]> = this.store.select(selectAllProducts);
+  loading$: Observable<boolean> = this.store.select(selectProductLoading);
+  error$: Observable<string | null> = this.store.select(selectProductError);
 
   ngOnInit() {
-    this.initForm();
-    this.categories$ = this.productService.getCategories();
-    
-    const products$ = this.productService.getProducts();
-
-    const filters$ = this.filterForm.valueChanges.pipe(
-      startWith(this.filterForm.value),
-      debounceTime(300),
-      distinctUntilChanged((prev, curr) => JSON.stringify(prev) === JSON.stringify(curr))
-    );
-
-    this.vm$ = combineLatest([products$, filters$, this.loadingSubject]).pipe(
-      map(([products, filters, loading]) => {
-        let filtered = [...products];
-
-        if (filters.search) {
-          const lowerTerms = filters.search.toLowerCase();
-          filtered = filtered.filter(p => p.title.toLowerCase().includes(lowerTerms));
-        }
-
-        if (filters.category) {
-          filtered = filtered.filter(p => p.category === filters.category);
-        }
-
-        if (filters.sort === 'asc') {
-          filtered.sort((a, b) => a.price - b.price);
-        } else if (filters.sort === 'desc') {
-          filtered.sort((a, b) => b.price - a.price);
-        }
-
-        if (loading) setTimeout(() => this.loadingSubject.next(false), 500); // Simulate mock loading
-
-        return { products: filtered, loading };
-      })
-    );
+    this.store.dispatch(loadProducts());
   }
 
-  private initForm() {
-    this.filterForm = this.fb.group({
-      search: [''],
-      category: [''],
-      sort: ['none']
-    });
-  }
-
-  trackById(index: number, product: Product): number {
-    return product.id;
+  retry() {
+    this.store.dispatch(loadProducts());
   }
 }
