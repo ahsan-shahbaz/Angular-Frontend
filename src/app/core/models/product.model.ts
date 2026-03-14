@@ -16,4 +16,8 @@ export interface Product {
     count: number;
   };
   tags: string[];
+  variants?: {
+    type: string;
+    options: string[];
+  }[];
 }

@@ -25,8 +25,16 @@ export class ProductService {
     return this.productsCache$;
   }
 
+  private productCache = new Map<number, Observable<Product>>();
+
   getProduct(id: number): Observable<Product> {
-    return this.http.get<Product>(`${this.apiUrl}/products/${id}`);
+    if (!this.productCache.has(id)) {
+      const product$ = this.http.get<Product>(`${this.apiUrl}/products/${id}`).pipe(
+        shareReplay(1)
+      );
+      this.productCache.set(id, product$);
+    }
+    return this.productCache.get(id)!;
   }
 
   getCategories(): Observable<string[]> {
