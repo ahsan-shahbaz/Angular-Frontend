@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { Product } from '../../../core/models/product.model';
@@ -11,12 +11,12 @@ import { WishlistService } from '../../../core/services/wishlist.service';
   standalone: true,
   imports: [CommonModule, RouterModule, ButtonComponent],
   template: `
-    <div class="card">
+    <div class="card" [routerLink]="['/products', product.id]">
       <div class="badge-container">
          <span class="discount-badge" *ngIf="product.discountPercentage">-{{ product.discountPercentage }}%</span>
       </div>
       
-      <div class="img-container" [routerLink]="['/products', product.id]">
+      <div class="img-container">
         <img [src]="product.image" [alt]="product.title" loading="lazy" />
         
         <button class="wishlist-btn" 
@@ -33,7 +33,7 @@ import { WishlistService } from '../../../core/services/wishlist.service';
 
       <div class="content">
         <p class="brand">{{ product.brand }}</p>
-        <h3 class="title" [title]="product.title" [routerLink]="['/products', product.id]">
+        <h3 class="title" [title]="product.title">
           {{ product.title | slice:0:45 }}{{ product.title.length > 45 ? '...' : '' }}
         </h3>
         
@@ -48,7 +48,7 @@ import { WishlistService } from '../../../core/services/wishlist.service';
             <span class="price">\${{ product.price | number:'1.2-2' }}</span>
             <span class="original-price" *ngIf="product.originalPrice">\${{ product.originalPrice | number:'1.2-2' }}</span>
           </div>
-          <button class="icon-cart-btn" (click)="addToCart()" title="Add to Cart">
+          <button class="icon-cart-btn" (click)="onAddToCart($event)" title="Add to Cart">
              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="9" cy="21" r="1"></circle>
                 <circle cx="20" cy="21" r="1"></circle>
@@ -70,6 +70,7 @@ import { WishlistService } from '../../../core/services/wishlist.service';
       flex-direction: column;
       height: 100%;
       position: relative;
+      cursor: pointer;
     }
     .card:hover {
       transform: translateY(-8px);
@@ -95,7 +96,6 @@ import { WishlistService } from '../../../core/services/wishlist.service';
       height: 240px;
       padding: 2rem;
       background: var(--img-bg, #f9fafb);
-      cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -107,7 +107,6 @@ import { WishlistService } from '../../../core/services/wishlist.service';
       max-width: 100%;
       object-fit: contain;
       transition: transform 0.5s;
-      mix-blend-mode: multiply;
     }
     .card:hover .img-container img {
       transform: scale(1.05);
@@ -183,7 +182,6 @@ import { WishlistService } from '../../../core/services/wishlist.service';
       font-size: 1.125rem;
       font-weight: 600;
       margin: 0 0 0.75rem 0;
-      cursor: pointer;
       color: var(--text-color, #1f2937);
       line-height: 1.4;
     }
@@ -251,11 +249,11 @@ import { WishlistService } from '../../../core/services/wishlist.service';
       --card-bg: #1f2937;
       --border-color: #374151;
       --text-color: #f9fafb;
-      --img-bg: #374151; /* Match card bg or slightly lighter */
+      --img-bg: #374151;
     }
     :host-context(.dark-theme) .img-container img {
       mix-blend-mode: normal;
-      background: white; /* preserve image background nicely */
+      background: white;
       border-radius: 8px;
       padding: 10px;
     }
@@ -277,7 +275,9 @@ export class ProductCardComponent {
     this.wishlistService.toggleWishlist(this.product);
   }
 
-  addToCart() {
+  onAddToCart(event: Event) {
+    event.stopPropagation();
+    event.preventDefault();
     this.cartService.addToCart(this.product);
   }
 }
