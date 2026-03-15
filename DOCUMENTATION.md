@@ -25,7 +25,7 @@ DOCUMENTATION.md   <- updated file
 src/
    index.html
    main.ts
-   styles.css / styles.scss
+   styles.scss
    app/
       app.component.ts
       app.config.ts
@@ -57,15 +57,15 @@ Refer to the code for exact file names and locations; the structure above reflec
 
 ## 🔌 Application Bootstrap & Routing
 
-- `src/main.ts` bootstraps `AppModule`.
-- Routing is configured in `app.routes.ts` / `AppRoutingModule` to expose primary routes for home, products, cart, checkout, auth, and wishlist. The root route directs users to the `home`/`product-list` views.
+- `src/main.ts` bootstraps `AppComponent` via `bootstrapApplication` using providers declared in `app.config.ts`.
+- Routing is configured in `app.routes.ts` with standalone, lazy-loaded feature components for home, products, cart, checkout, auth, and wishlist. The root route nests inside `LayoutComponent` (header/footer) and directs users to the home/product list view.
 
 ---
 
 ## 🧱 Key Modules & Features
 
 - **Core (`app/core`)**: cross-cutting concerns — API models, interceptors (`auth.interceptor.ts`, `error.interceptor.ts`), guards (`auth.guard.ts`), and shared services (`auth.service.ts`, `product.service.ts`, `cart.service.ts`, `wishlist.service.ts`, `toast.service.ts`, `theme.service.ts`, `recently-viewed.service.ts`).
-- **Features (`app/features`)**: feature folders contain components and pages:
+- **Features (`app/features`)**: feature folders contain standalone components and pages:
    - `home` — landing content and featured products.
    - `products` — product list, product card, product details pages.
    - `cart` — shopping cart UI and integration with `CartService` and cart state.
@@ -92,19 +92,20 @@ Shared UI components live under `app/shared/ui` and are small, framework-agnosti
 ## 🧠 Services & Client Logic
 
 - **Authentication:** `auth.service.ts` provides a simple authentication/identity interface used by `auth.guard.ts` and `auth.interceptor.ts`.
-- **Products:** `product.service.ts` exposes product listing and details. Replace with real HTTP endpoints as needed.
+- **Products:** `product.service.ts` exposes product listing and details via HTTP calls and caches responses where helpful.
 - **Cart:** `cart.service.ts` plus state files under `core/state` manage the current user's cart; a lightweight action/effect/reducer pattern for cart is present (`cart.actions.ts`, `cart.effects.ts`, `cart.reducer.ts`, `cart.selectors.ts`).
 - **Wishlist / Recently Viewed / Theme / Toast:** small services for cross-cutting features.
 
 Interceptors handle auth token attachment and centralized error handling.
 
+All HTTP services read their base URL from `environment.apiUrl` (default: `http://localhost:8080/api`).
+
 ---
 
 ## 🔁 State Management
 
-- The repo uses a targeted state approach for the cart via `core/state/` files. This provides selectors, actions, and effects sufficient for optimistic updates and UI synchronization.
-
-If you need full global state scaling, consider introducing NgRx store modules.
+- The repo uses NgRx store slices for `cart` and `products` under `core/state/`, with effects driving API calls and selectors feeding components.
+- Cart state is hydrated from `localStorage` on startup; wishlist uses signals with local persistence.
 
 ---
 
@@ -144,6 +145,8 @@ npm test
 ng build --configuration production
 ```
 
+Note: there are currently no `.spec.ts` files in the repo, so `npm test -- --watch=false` will report missing inputs until tests are added.
+
 ---
 
 ## ✅ VS Code Tasks
@@ -166,7 +169,7 @@ Use the VS Code Run/Debug panel or `Run Task` command to run these tasks.
 
 ## 🧩 Extending & Integration Notes
 
-- Replace service stubs with real `HttpClient` calls to backend endpoints.
+- Point services at real backend endpoints (update `environment.apiUrl` and request payloads/models as needed).
 - Integrate real authentication (OAuth / JWT) and wire `auth.interceptor.ts` to attach tokens.
 - Add server-side pagination and filtering to `product.service` for large catalogs.
 - Consider adding e2e tests and CI pipelines for automated checks.

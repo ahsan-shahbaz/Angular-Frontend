@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { shareReplay, catchError } from 'rxjs/operators';
+import { shareReplay } from 'rxjs/operators';
 import { Product } from '../models/product.model';
 import { environment } from '../../../environments/environment';
 
@@ -14,7 +14,6 @@ export class ProductService {
 
   // RxJS ShareReplay Cache
   private productsCache$?: Observable<Product[]>;
-  private categoriesCache$?: Observable<string[]>;
   private productCache = new Map<number, Observable<Product>>();
 
   getProducts(): Observable<Product[]> {
@@ -41,22 +40,7 @@ export class ProductService {
     return request$;
   }
 
-  getCategories(): Observable<string[]> {
-    if (!this.categoriesCache$) {
-      this.categoriesCache$ = this.http.get<string[]>(`${this.apiUrl}/products/categories`).pipe(
-        shareReplay(1)
-      );
-    }
-    return this.categoriesCache$;
-  }
-
   getFeaturedProducts(): Observable<Product[]> {
     return this.http.get<Product[]>(`${this.apiUrl}/products/featured`);
-  }
-
-  searchProducts(query: string): Observable<Product[]> {
-    return this.http.get<Product[]>(`${this.apiUrl}/products/search`, {
-      params: { q: query }
-    });
   }
 }

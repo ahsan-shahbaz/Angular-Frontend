@@ -16,51 +16,69 @@ graph LR
 ```mermaid
 graph TD
     subgraph Angular Frontend
-        appModule[AppModule]
-        coreModule[Core Module]
-        featuresModule[Features Modules]
-        layoutModule[Layout Module]
-        sharedUiModule[Shared UI Module]
+        bootstrap[bootstrapApplication + app.config.ts]
+        appComponent[AppComponent (standalone)]
+        layout[LayoutComponent]
+        routes[Lazy Routes (home, products, cart, checkout, wishlist, auth)]
+        store[NgRx Store (cart, products)]
+        interceptors[HTTP interceptors]
     end
 
-    appModule --> coreModule
-    appModule --> featuresModule
-    appModule --> layoutModule
-    appModule --> sharedUiModule
-    coreModule -->|HTTP| api["Backend API"]
-    coreModule -.->|NgRx state| state["State Store (cart, etc.)"]
+    bootstrap --> appComponent --> layout --> routes
+    bootstrap --> store
+    bootstrap --> interceptors
+    store --> routes
+    interceptors --> api["Backend API"]
 ```
 
-## Module Relationships
+## Feature Relationships
 
 ```mermaid
 flowchart LR
-    subgraph Core
+    subgraph Core Services
         authService[AuthService]
         cartService[CartService]
         productService[ProductService]
+        wishlistService[WishlistService]
         themeService[ThemeService]
         toastService[ToastService]
-        wishlistService[WishlistService]
         recentlyService[RecentlyViewedService]
     end
+    subgraph State
+        cartState[Cart reducer + effects]
+        productState[Product reducer + effects]
+    end
     subgraph Features
-        auth[Login Component]
+        home[Home Component]
+        products[Product List / Details]
         cart[Cart Component]
         checkout[Checkout Component]
-        home[Home Component]
-        products[Product List, Card, Details Components]
+        auth[Login Component]
         wishlist[Wishlist Component]
     end
-    subgraph Shared
+    subgraph Shared UI
         button[Button]
         input[Input]
         loading[Loading Skeleton]
         modal[Modal]
         toast[Toast]
     end
-    core --> features
-    features --> shared
+    productService --> productState
+    cartService --> cartState
+    authService --> auth
+    wishlistService --> wishlist
+    recentlyService --> home
+    cartState --> cart
+    productState --> products
+    home --> button
+    products --> button
+    products --> loading
+    cart --> modal
+    checkout --> input
+    auth --> input
+    wishlist --> button
+    toastService --> toast
+    themeService --> home
 ```
 
 > 🔧 You can preview these diagrams with the Mermaid previewer in VS Code or online tools. Adjust as needed to capture additional details.
