@@ -30,4 +30,9 @@
   --red-500: #ef4444;
   --green-500: #10b981;
   --yellow-500: #f59e0b;
+
+  // Modern UI Tokens
+  --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }

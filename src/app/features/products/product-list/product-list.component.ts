@@ -18,240 +18,322 @@ import { ProductService } from '../../../core/services/product.service';
   standalone: true,
   imports: [CommonModule, FormsModule, ProductCardComponent, SkeletonCardComponent],
   template: `
-    <div class="product-list-container">
-      <header class="list-header">
-        <div class="header-content">
-          <h1>Our Collection</h1>
-          <p>Discover our range of premium products curated just for you.</p>
-        </div>
-        
-        <div class="filter-bar" *ngIf="filterModel as filters">
-          <div class="filter-grid">
-            <div class="filter-group">
-              <label>Price Range</label>
-              <div class="price-inputs">
-                <input type="number" placeholder="Min" [ngModel]="filters.priceMin" (ngModelChange)="updateNumericFilter('priceMin', $event)">
-                <span>-</span>
-                <input type="number" placeholder="Max" [ngModel]="filters.priceMax" (ngModelChange)="updateNumericFilter('priceMax', $event)">
-              </div>
-            </div>
+    <div class="page">
 
-            <div class="filter-group">
-              <label>Category</label>
-              <select [ngModel]="filters.category" (ngModelChange)="updateTextFilter('category', $event)">
-                <option value="">All</option>
-                <option *ngFor="let category of (categories$ | async)" [value]="category">
-                  {{ category }}
-                </option>
-              </select>
-            </div>
-
-            <div class="filter-group">
-              <label>Brand</label>
-              <select [ngModel]="filters.brand" (ngModelChange)="updateTextFilter('brand', $event)">
-                <option value="">All</option>
-                <option *ngFor="let brand of (brands$ | async)" [value]="brand">
-                  {{ brand }}
-                </option>
-              </select>
-            </div>
-
-            <div class="filter-group">
-              <label>Rating</label>
-              <select [ngModel]="filters.rating" (ngModelChange)="updateNumericFilter('rating', $event)">
-                <option value="">Any</option>
-                <option *ngFor="let rating of ratingOptions" [ngValue]="rating">
-                  {{ rating }}+ stars
-                </option>
-              </select>
-            </div>
-
-            <div class="filter-group checkbox">
-              <label>
-                <input type="checkbox" [ngModel]="filters.inStockOnly" (ngModelChange)="updateStock($event)">
-                In Stock
-              </label>
-            </div>
-
-            <div class="filter-actions">
-              <button class="apply-btn" (click)="applyFilters()">Apply Filters</button>
-              <button class="clear-btn" (click)="clearFilters()" [disabled]="!hasActiveFilters(filters)">
-                Clear
-              </button>
-            </div>
-          </div>
-
-          <div class="stats" *ngIf="(products$ | async) as products">
-            {{ products.length }} items shown
-          </div>
-        </div>
+      <!-- Hero Header -->
+      <header class="hero">
+        <h1>Our Collection</h1>
+        <p>Discover premium products curated just for you.</p>
       </header>
 
-      <!-- Error State -->
-      <div class="error-state" *ngIf="error$ | async as error">
-        <div class="error-card">
-          <svg viewBox="0 0 24 24" width="48" height="48">
-            <path d="M11 15h2v2h-2zm0-8h2v6h-2zm.99-5C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" fill="#ef4444"/>
-          </svg>
-          <h2>Unable to load products</h2>
+      <!-- Filter Toolbar -->
+      <section class="toolbar" *ngIf="filterModel as f">
+        <div class="filters-row">
+
+          <!-- Price -->
+          <div class="field">
+            <label>Price</label>
+            <div class="price-pair">
+              <input type="number" placeholder="Min $" [ngModel]="f.priceMin" (ngModelChange)="updateNumericFilter('priceMin', $event)">
+              <span class="sep">–</span>
+              <input type="number" placeholder="Max $" [ngModel]="f.priceMax" (ngModelChange)="updateNumericFilter('priceMax', $event)">
+            </div>
+          </div>
+
+          <!-- Category -->
+          <div class="field">
+            <label>Category</label>
+            <select [ngModel]="f.category" (ngModelChange)="updateTextFilter('category', $event)">
+              <option [ngValue]="null">All</option>
+              <option *ngFor="let c of (categories$ | async)" [value]="c">{{ c }}</option>
+            </select>
+          </div>
+
+          <!-- Brand -->
+          <div class="field">
+            <label>Brand</label>
+            <select [ngModel]="f.brand" (ngModelChange)="updateTextFilter('brand', $event)">
+              <option [ngValue]="null">All</option>
+              <option *ngFor="let b of (brands$ | async)" [value]="b">{{ b }}</option>
+            </select>
+          </div>
+
+          <!-- Rating -->
+          <div class="field">
+            <label>Rating</label>
+            <select [ngModel]="f.rating" (ngModelChange)="updateNumericFilter('rating', $event)">
+              <option [ngValue]="null">Any</option>
+              <option *ngFor="let r of ratingOptions" [ngValue]="r">{{ r }}★ & up</option>
+            </select>
+          </div>
+
+          <!-- In Stock -->
+          <label class="toggle">
+            <input type="checkbox" [ngModel]="f.inStockOnly" (ngModelChange)="updateStock($event)">
+            <span class="toggle-label">In stock only</span>
+          </label>
+
+          <!-- Actions -->
+          <div class="actions">
+            <button class="btn-apply" (click)="applyFilters()">Apply</button>
+            <button class="btn-clear" (click)="clearFilters()" [disabled]="!hasActiveFilters(f)">Clear</button>
+          </div>
+        </div>
+
+        <div class="results-count" *ngIf="(products$ | async) as prods">
+          <span class="count-badge">{{ prods.length }}</span> products found
+        </div>
+      </section>
+
+      <!-- Error -->
+      <div class="state-msg" *ngIf="error$ | async as error">
+        <div class="state-card">
+          <span class="state-icon">⚠️</span>
+          <h3>Unable to load products</h3>
           <p>{{ error }}</p>
-          <button (click)="retry()">Try Again</button>
+          <button class="btn-apply" (click)="retry()">Try Again</button>
         </div>
       </div>
 
-      <!-- Skeleton Loading State -->
-      <div class="product-grid" *ngIf="loading$ | async">
+      <!-- Skeleton -->
+      <div class="grid" *ngIf="loading$ | async">
         <app-skeleton-card *ngFor="let i of [1,2,3,4,5,6,7,8]"></app-skeleton-card>
       </div>
 
-      <!-- Product Grid -->
-      <div class="product-grid" *ngIf="!(loading$ | async) && (products$ | async) as products">
-        <app-product-card 
-          *ngFor="let product of products" 
-          [product]="product">
-        </app-product-card>
+      <!-- Products -->
+      <div class="grid" *ngIf="!(loading$ | async) && (products$ | async) as products">
+        <app-product-card *ngFor="let product of products" [product]="product"></app-product-card>
       </div>
 
-      <!-- Empty State -->
-      <div class="empty-state" *ngIf="!(loading$ | async) && (products$ | async)?.length === 0">
-        <p>No products found matching your criteria.</p>
+      <!-- Empty -->
+      <div class="state-msg" *ngIf="!(loading$ | async) && (products$ | async)?.length === 0">
+        <div class="state-card">
+          <span class="state-icon">🔍</span>
+          <h3>No products found</h3>
+          <p>Try adjusting your filters.</p>
+          <button class="btn-apply" (click)="clearFilters()">Clear Filters</button>
+        </div>
       </div>
     </div>
   `,
   styles: [`
-    .product-list-container {
-      padding: 2rem;
-      max-width: 1400px;
+    /* ─── Page ─── */
+    .page {
+      max-width: 1360px;
       margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
     }
-    .list-header {
-      margin-bottom: 3rem;
+
+    /* ─── Hero ─── */
+    .hero {
+      text-align: center;
+      margin-bottom: 2rem;
     }
-    .header-content h1 {
-      font-size: 2.5rem;
+    .hero h1 {
+      font-size: clamp(2rem, 4vw, 2.8rem);
       font-weight: 800;
-      color: #1e293b;
-      margin-bottom: 0.5rem;
-      background: linear-gradient(90deg, #6366f1, #a855f7);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.03em;
+      color: var(--text-main);
+      margin: 0 0 0.4rem;
     }
-    .header-content p {
-      color: #64748b;
-      font-size: 1.125rem;
+    .hero p {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+      margin: 0;
     }
-    .filter-bar {
-      margin-top: 2rem;
-      padding-top: 1.5rem;
-      border-top: 1px solid #e2e8f0;
+
+    /* ─── Toolbar ─── */
+    .toolbar {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 2.5rem;
       display: flex;
       flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .filters-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
       gap: 1rem;
     }
-    .filter-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 1rem;
-      align-items: center;
-    }
-    .filter-group {
+
+    .field {
       display: flex;
       flex-direction: column;
-      gap: 0.5rem;
-      color: #0f172a;
-      font-weight: 600;
+      gap: 0.35rem;
+      min-width: 140px;
+      flex: 1;
     }
-    .filter-group label { font-size: 0.9rem; }
-    .filter-group select,
-    .filter-group input {
-      border: 1px solid #e2e8f0;
+    .field label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+    }
+
+    .field select,
+    .field input {
+      appearance: none;
+      -webkit-appearance: none;
+      background: var(--surface-section);
+      border: 1px solid var(--border-color);
       border-radius: 10px;
-      padding: 0.6rem 0.75rem;
-      font-size: 0.95rem;
-      color: #0f172a;
-      background: #fff;
+      padding: 0.6rem 0.8rem;
+      font-size: 0.88rem;
+      color: var(--text-main);
+      width: 100%;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      outline: none;
+      font-family: inherit;
     }
-    .price-inputs {
-      display: grid;
-      grid-template-columns: 1fr auto 1fr;
-      align-items: center;
-      gap: 0.4rem;
+    .field select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.75rem center;
+      padding-right: 2rem;
     }
-    .checkbox {
-      flex-direction: row;
+    .field select:focus,
+    .field input:focus {
+      border-color: var(--primary-400);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08);
+    }
+
+    /* Price pair */
+    .price-pair {
+      display: flex;
       align-items: center;
-      gap: 0.6rem;
+      gap: 0.35rem;
+    }
+    .price-pair input { min-width: 0; }
+    .sep {
+      color: var(--text-muted);
       font-weight: 500;
-      color: #0f172a;
     }
-    .checkbox input {
+
+    /* Toggle */
+    .toggle {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      user-select: none;
+      padding-bottom: 0.1rem;
+      white-space: nowrap;
+    }
+    .toggle input[type="checkbox"] {
       width: 18px;
       height: 18px;
-    }
-    .filter-actions {
-      display: flex;
-      gap: 0.75rem;
-      align-items: center;
-      justify-content: flex-start;
-    }
-    .apply-btn, .clear-btn {
-      border: none;
-      border-radius: 10px;
-      padding: 0.65rem 1.25rem;
-      font-weight: 700;
+      accent-color: var(--primary-color);
       cursor: pointer;
     }
-    .apply-btn {
-      background: linear-gradient(90deg, #6366f1, #a855f7);
-      color: #fff;
-    }
-    .clear-btn {
-      background: #e2e8f0;
-      color: #0f172a;
-    }
-    .clear-btn[disabled] {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-    .filter-bar .stats {
-      color: #64748b;
-      font-size: 0.95rem;
+    .toggle-label {
+      font-size: 0.85rem;
       font-weight: 600;
+      color: var(--text-main);
     }
-    .product-grid {
+
+    /* Action buttons */
+    .actions {
+      display: flex;
+      gap: 0.5rem;
+      padding-bottom: 0.1rem;
+    }
+
+    .btn-apply {
+      background: var(--primary-color);
+      color: var(--primary-color-text);
+      border: none;
+      padding: 0.6rem 1.4rem;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.2s;
+    }
+    .btn-apply:hover {
+      background: var(--primary-700);
+      transform: translateY(-1px);
+    }
+
+    .btn-clear {
+      background: var(--surface-hover);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      padding: 0.6rem 1.2rem;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-clear:hover:not(:disabled) { background: var(--surface-200); }
+    .btn-clear:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Results badge */
+    .results-count {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .count-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--primary-100);
+      color: var(--primary-700);
+      font-weight: 700;
+      font-size: 0.75rem;
+      min-width: 22px;
+      height: 22px;
+      padding: 0 6px;
+      border-radius: 20px;
+    }
+
+    /* ─── Grid ─── */
+    .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 2rem;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 1.5rem;
     }
-    .error-state, .empty-state {
+
+    /* ─── State Messages ─── */
+    .state-msg {
       display: flex;
       justify-content: center;
-      padding: 4rem 0;
+      padding: 5rem 1rem;
+    }
+    .state-card {
       text-align: center;
-    }
-    .error-card {
-      background: white;
-      padding: 3rem;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
       border-radius: 20px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-      max-width: 400px;
+      padding: 3rem;
+      max-width: 380px;
     }
-    .error-card h2 { color: #1e293b; margin: 1rem 0; }
-    .error-card p { color: #64748b; margin-bottom: 2rem; }
-    .error-card button {
-      background: #6366f1;
-      color: white;
-      border: none;
-      padding: 0.75rem 2rem;
-      border-radius: 10px;
-      font-weight: 600;
-      cursor: pointer;
+    .state-icon { font-size: 2.5rem; display: block; margin-bottom: 1rem; }
+    .state-card h3 {
+      margin: 0 0 0.5rem;
+      color: var(--text-main);
+      font-weight: 700;
     }
-    
-    @media (max-width: 768px) {
-      .product-list-container { padding: 1rem; }
-      .header-content h1 { font-size: 2rem; }
-      .product-grid { gap: 1rem; }
+    .state-card p {
+      color: var(--text-muted);
+      margin: 0 0 1.5rem;
+      line-height: 1.5;
+    }
+
+    /* ─── Mobile ─── */
+    @media (max-width: 640px) {
+      .page { padding: 1rem; }
+      .toolbar { padding: 1rem; border-radius: 12px; }
+      .filters-row { flex-direction: column; }
+      .field { min-width: 0; }
+      .grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1rem; }
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
