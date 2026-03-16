@@ -17,3 +17,8 @@ export const selectProduct = createAction(
   '[Product List] Select Product',
   props<{ id: number }>()
 );
+
+export const searchProducts = createAction(
+  '[Product Search] Search Products',
+  props<{ query: string }>()
+);

@@ -1,10 +1,12 @@
-import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ActivatedRoute } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { Observable } from 'rxjs';
+import { Observable, Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { Product } from '../../../core/models/product.model';
 import { selectAllProducts, selectProductLoading, selectProductError } from '../../../core/state/product.selectors';
-import { loadProducts } from '../../../core/state/product.actions';
+import { loadProducts, searchProducts } from '../../../core/state/product.actions';
 import { ProductCardComponent } from '../product-card/product-card.component';
 import { SkeletonCardComponent } from '../../../shared/components/skeleton-card/skeleton-card.component';
 
@@ -16,12 +18,15 @@ import { SkeletonCardComponent } from '../../../shared/components/skeleton-card/
     <div class="product-list-container">
       <header class="list-header">
         <div class="header-content">
-          <h1>Our Collection</h1>
-          <p>Discover our range of premium products curated just for you.</p>
+          <h1 *ngIf="!searchQuery">Our Collection</h1>
+          <h1 *ngIf="searchQuery">Search Results</h1>
+          <p *ngIf="!searchQuery">Discover our range of premium products curated just for you.</p>
+          <p *ngIf="searchQuery">
+            Showing results for "<strong>{{ searchQuery }}</strong>"
+          </p>
         </div>
         
         <div class="filter-bar">
-          <!-- Filters can be added here later -->
           <div class="stats" *ngIf="(products$ | async) as products">
             {{ products.length }} items shown
           </div>
@@ -55,7 +60,12 @@ import { SkeletonCardComponent } from '../../../shared/components/skeleton-card/
 
       <!-- Empty State -->
       <div class="empty-state" *ngIf="!(loading$ | async) && (products$ | async)?.length === 0">
-        <p>No products found matching your criteria.</p>
+        <div class="empty-card">
+          <span class="empty-icon">🔍</span>
+          <h3 *ngIf="searchQuery">No products found for "{{ searchQuery }}"</h3>
+          <h3 *ngIf="!searchQuery">No products found</h3>
+          <p>Try adjusting your search or browse our full collection.</p>
+        </div>
       </div>
     </div>
   `,
@@ -71,23 +81,23 @@ import { SkeletonCardComponent } from '../../../shared/components/skeleton-card/
     .header-content h1 {
       font-size: 2.5rem;
       font-weight: 800;
-      color: #1e293b;
+      color: var(--text-main, #1e293b);
       margin-bottom: 0.5rem;
-      background: linear-gradient(90deg, #6366f1, #a855f7);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
     }
     .header-content p {
-      color: #64748b;
+      color: var(--text-muted, #64748b);
       font-size: 1.125rem;
+    }
+    .header-content p strong {
+      color: var(--text-main, #1e293b);
     }
     .filter-bar {
       margin-top: 2rem;
       padding-top: 1.5rem;
-      border-top: 1px solid #e2e8f0;
+      border-top: 1px solid var(--border-color, #e2e8f0);
       display: flex;
       justify-content: flex-end;
-      color: #94a3b8;
+      color: var(--text-muted, #94a3b8);
       font-size: 0.875rem;
     }
     .product-grid {
@@ -102,14 +112,15 @@ import { SkeletonCardComponent } from '../../../shared/components/skeleton-card/
       text-align: center;
     }
     .error-card {
-      background: white;
+      background: var(--card-bg, white);
       padding: 3rem;
       border-radius: 20px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.05);
       max-width: 400px;
+      border: 1px solid var(--border-color, #e2e8f0);
     }
-    .error-card h2 { color: #1e293b; margin: 1rem 0; }
-    .error-card p { color: #64748b; margin-bottom: 2rem; }
+    .error-card h2 { color: var(--text-main, #1e293b); margin: 1rem 0; }
+    .error-card p { color: var(--text-muted, #64748b); margin-bottom: 2rem; }
     .error-card button {
       background: #6366f1;
       color: white;
@@ -118,6 +129,25 @@ import { SkeletonCardComponent } from '../../../shared/components/skeleton-card/
       border-radius: 10px;
       font-weight: 600;
       cursor: pointer;
+    }
+
+    .empty-card {
+      background: var(--card-bg, white);
+      padding: 3rem;
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+      max-width: 400px;
+      border: 1px solid var(--border-color, #e2e8f0);
+    }
+    .empty-icon { font-size: 3rem; display: block; margin-bottom: 1rem; }
+    .empty-card h3 {
+      color: var(--text-main, #1e293b);
+      margin: 0 0 0.5rem;
+      font-weight: 700;
+    }
+    .empty-card p {
+      color: var(--text-muted, #64748b);
+      margin: 0;
     }
     
     @media (max-width: 768px) {
@@ -128,18 +158,42 @@ import { SkeletonCardComponent } from '../../../shared/components/skeleton-card/
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class ProductListComponent implements OnInit {
+export class ProductListComponent implements OnInit, OnDestroy {
   private store = inject(Store);
+  private route = inject(ActivatedRoute);
+  private destroy$ = new Subject<void>();
 
   products$: Observable<Product[]> = this.store.select(selectAllProducts);
   loading$: Observable<boolean> = this.store.select(selectProductLoading);
   error$: Observable<string | null> = this.store.select(selectProductError);
 
+  searchQuery: string | null = null;
+
   ngOnInit() {
-    this.store.dispatch(loadProducts());
+    this.route.queryParams.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(params => {
+      const query = params['search']?.trim();
+      this.searchQuery = query || null;
+
+      if (query) {
+        this.store.dispatch(searchProducts({ query }));
+      } else {
+        this.store.dispatch(loadProducts());
+      }
+    });
+  }
+
+  ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   retry() {
-    this.store.dispatch(loadProducts());
+    if (this.searchQuery) {
+      this.store.dispatch(searchProducts({ query: this.searchQuery }));
+    } else {
+      this.store.dispatch(loadProducts());
+    }
   }
 }

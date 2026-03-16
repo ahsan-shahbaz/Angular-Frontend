@@ -23,4 +23,18 @@ export class ProductEffects {
       )
     )
   );
+
+  searchProducts$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(ProductActions.searchProducts),
+      mergeMap(({ query }) =>
+        this.productService.searchProducts(query).pipe(
+          map((products) => ProductActions.loadProductsSuccess({ products })),
+          catchError((error) =>
+            of(ProductActions.loadProductsFailure({ error: error.message }))
+          )
+        )
+      )
+    )
+  );
 }
