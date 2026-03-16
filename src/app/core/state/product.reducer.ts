@@ -1,5 +1,6 @@
 import { createReducer, on } from '@ngrx/store';
 import { Product } from '../models/product.model';
+import { ProductFilters } from '../models/product-filters.model';
 import * as ProductActions from './product.actions';
 
 export interface ProductState {
@@ -7,13 +8,24 @@ export interface ProductState {
   selectedProductId: number | null;
   loading: boolean;
   error: string | null;
+  filters: ProductFilters;
 }
+
+const defaultFilters: ProductFilters = {
+  priceMin: null,
+  priceMax: null,
+  category: null,
+  brand: null,
+  rating: null,
+  inStockOnly: false
+};
 
 export const initialState: ProductState = {
   products: [],
   selectedProductId: null,
   loading: false,
-  error: null
+  error: null,
+  filters: { ...defaultFilters }
 };
 
 export const productReducer = createReducer(
@@ -37,5 +49,16 @@ export const productReducer = createReducer(
   on(ProductActions.selectProduct, (state, { id }) => ({
     ...state,
     selectedProductId: id
+  })),
+  on(ProductActions.updateFilters, (state, { filters }) => ({
+    ...state,
+    filters: {
+      ...state.filters,
+      ...filters
+    }
+  })),
+  on(ProductActions.resetFilters, (state) => ({
+    ...state,
+    filters: { ...defaultFilters }
   }))
 );

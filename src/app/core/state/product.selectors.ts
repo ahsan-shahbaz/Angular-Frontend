@@ -28,3 +28,8 @@ export const selectSelectedProduct = createSelector(
   selectSelectedProductId,
   (products, selectedId) => products.find(p => p.id === selectedId) || null
 );
+
+export const selectProductFilters = createSelector(
+  selectProductState,
+  (state) => state.filters
+);

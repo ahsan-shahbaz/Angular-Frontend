@@ -20,28 +20,51 @@ import { CommonModule } from '@angular/common';
       align-items: center;
       justify-content: center;
       border: none;
-      border-radius: 6px;
-      font-weight: 500;
+      border-radius: 12px;
+      font-weight: 700;
       cursor: pointer;
-       transition: all 0.2s;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      gap: 0.5rem;
+      letter-spacing: 0.02em;
     }
-    .primary { background: #3b82f6; color: white; }
-    .primary:hover:not(:disabled) { background: #2563eb; }
-    .secondary { background: #e5e7eb; color: #374151; }
-    .secondary:hover:not(:disabled) { background: #d1d5db; }
-    .danger { background: #ef4444; color: white; }
-    .sm { padding: 6px 12px; font-size: 0.875rem; }
-    .md { padding: 8px 16px; font-size: 1rem; }
-    .lg { padding: 12px 24px; font-size: 1.125rem; }
-    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .primary { 
+      background: linear-gradient(135deg, #6366f1, #3b82f6);
+      color: white; 
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+    }
+    .primary:hover:not(:disabled) { 
+      transform: translateY(-2px);
+      box-shadow: 0 6px 15px rgba(59, 130, 246, 0.4);
+    }
+    .secondary { 
+      background: var(--surface-200); 
+      color: var(--text-main); 
+    }
+    .secondary:hover:not(:disabled) { 
+      background: var(--surface-300);
+      transform: translateY(-2px);
+    }
+    .danger { 
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      color: white; 
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+    }
+    .danger:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 15px rgba(239, 68, 68, 0.4);
+    }
+    .sm { padding: 8px 16px; font-size: 0.85rem; }
+    .md { padding: 10px 20px; font-size: 0.95rem; }
+    .lg { padding: 14px 28px; font-size: 1.1rem; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
     
     .spinner {
-      width: 1rem;
-      height: 1rem;
-      border: 2px solid white;
-      border-top-color: transparent;
+      width: 1.2rem;
+      height: 1.2rem;
+      border: 3px solid rgba(255,255,255,0.3);
+      border-top-color: white;
       border-radius: 50%;
-      animation: spin 1s linear infinite;
+      animation: spin 0.8s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
   `],
