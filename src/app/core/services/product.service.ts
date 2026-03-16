@@ -103,6 +103,9 @@ export class ProductService {
     if (filters.inStockOnly) {
       params = params.set('inStock', 'true');
     }
+    if (filters.sortBy) {
+      params = params.set('sortBy', filters.sortBy);
+    }
 
     return params;
   }

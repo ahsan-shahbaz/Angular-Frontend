@@ -17,7 +17,8 @@ const defaultFilters: ProductFilters = {
   category: null,
   brand: null,
   rating: null,
-  inStockOnly: false
+  inStockOnly: false,
+  sortBy: null
 };
 
 export const initialState: ProductState = {

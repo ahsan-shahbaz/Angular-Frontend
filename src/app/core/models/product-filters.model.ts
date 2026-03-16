@@ -5,4 +5,5 @@ export interface ProductFilters {
   brand: string | null;
   rating: number | null;
   inStockOnly: boolean;
+  sortBy: string | null;
 }

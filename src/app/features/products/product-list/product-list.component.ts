@@ -34,6 +34,15 @@ import { ProductService } from '../../../core/services/product.service';
       <section class="toolbar" *ngIf="!searchQuery && filterModel as f">
         <div class="filters-row">
 
+          <!-- Sort By -->
+          <div class="field">
+            <label>Sort By</label>
+            <select [ngModel]="f.sortBy" (ngModelChange)="updateTextFilter('sortBy', $event)">
+              <option [ngValue]="null">Featured</option>
+              <option *ngFor="let opt of sortOptions" [value]="opt.value">{{ opt.label }}</option>
+            </select>
+          </div>
+
           <!-- Price -->
           <div class="field">
             <label>Price</label>
@@ -370,8 +379,17 @@ export class ProductListComponent implements OnInit, OnDestroy {
     category: null,
     brand: null,
     rating: null,
-    inStockOnly: false
+    inStockOnly: false,
+    sortBy: null
   };
+
+  sortOptions = [
+    { label: 'Price: Low to High', value: 'price_asc' },
+    { label: 'Price: High to Low', value: 'price_desc' },
+    { label: 'Most Popular', value: 'popularity' },
+    { label: 'Highest Rated', value: 'rating' },
+    { label: 'Newest', value: 'newest' }
+  ];
 
   ratingOptions = [5, 4, 3, 2, 1];
 
@@ -420,8 +438,11 @@ export class ProductListComponent implements OnInit, OnDestroy {
     this.filterModel = { ...this.filterModel, [key]: numericValue } as ProductFilters;
   }
 
-  updateTextFilter(key: 'category' | 'brand', value: string) {
+  updateTextFilter(key: 'category' | 'brand' | 'sortBy', value: string) {
     this.filterModel = { ...this.filterModel, [key]: value || null };
+    if (key === 'sortBy') {
+      this.applyFilters();
+    }
   }
 
   updateStock(inStock: boolean) {
@@ -442,7 +463,8 @@ export class ProductListComponent implements OnInit, OnDestroy {
       category: null,
       brand: null,
       rating: null,
-      inStockOnly: false
+      inStockOnly: false,
+      sortBy: null
     };
     this.store.dispatch(resetFilters());
     this.syncQueryParams(this.filterModel);
@@ -455,7 +477,8 @@ export class ProductListComponent implements OnInit, OnDestroy {
       filters.category ||
       filters.brand ||
       filters.rating !== null ||
-      filters.inStockOnly
+      filters.inStockOnly ||
+      filters.sortBy !== null
     );
   }
 
@@ -480,6 +503,9 @@ export class ProductListComponent implements OnInit, OnDestroy {
     if (filters.inStockOnly) {
       queryParams['inStock'] = 'true';
     }
+    if (filters.sortBy) {
+      queryParams['sortBy'] = filters.sortBy;
+    }
 
     this.router.navigate([], {
       relativeTo: this.route,
@@ -498,6 +524,7 @@ export class ProductListComponent implements OnInit, OnDestroy {
     const brand = params.get('brand');
     const rating = params.get('rating');
     const inStock = params.get('inStock');
+    const sortBy = params.get('sortBy');
 
     if (priceMin !== null && !isNaN(Number(priceMin))) {
       filters.priceMin = Number(priceMin);
@@ -517,6 +544,9 @@ export class ProductListComponent implements OnInit, OnDestroy {
     if (inStock !== null) {
       filters.inStockOnly = inStock === 'true';
     }
+    if (sortBy) {
+      filters.sortBy = sortBy;
+    }
 
     return filters;
   }
@@ -528,7 +558,8 @@ export class ProductListComponent implements OnInit, OnDestroy {
       category: filters.category ? filters.category : null,
       brand: filters.brand ? filters.brand : null,
       rating: filters.rating !== null && filters.rating !== undefined ? Number(filters.rating) : null,
-      inStockOnly: filters.inStockOnly
+      inStockOnly: filters.inStockOnly,
+      sortBy: filters.sortBy || null
     };
   }
 }
