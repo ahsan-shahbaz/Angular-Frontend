@@ -33,3 +33,8 @@ export const selectProductFilters = createSelector(
   selectProductState,
   (state) => state.filters
 );
+
+export const selectSortBy = createSelector(
+  selectProductFilters,
+  (filters) => filters.sortBy
+);
